@@ -5,14 +5,16 @@ import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-dashboard-home',
+  standalone: true, // <--- Importante en Angular moderno
   imports: [CommonModule, FormsModule],
   templateUrl: './dashboard-home.html',
-  styleUrl: './dashboard-home.css',
+  styleUrl: './dashboard-home.css', // O .scss si usas sass
 })
 export class DashboardHome implements OnInit {
   restaurantes: any[] = [];
+  restaurantesFiltrados: any[] = []; // Para la búsqueda
 
-  // Variables para la Búsqueda IA
+  // Variables para la Búsqueda
   searchQuery: string = '';
   mensajeIA: string = '';
   estaBuscando: boolean = false;
@@ -20,7 +22,7 @@ export class DashboardHome implements OnInit {
   // Variables para controlar el formulario
   restauranteSeleccionado: any = null;
   reservaData = {
-    nombre: '',
+    numeroPersonas: 2, // <--- Faltaba esto
     fecha: '',
     hora: ''
   };
@@ -28,75 +30,74 @@ export class DashboardHome implements OnInit {
   constructor(private api: Api) {}
 
   ngOnInit() {
-    this.api.getRestaurantes().subscribe(data => {
-      this.restaurantes = data;
-    });
+    this.cargarTodos();
   }
 
   cargarTodos() {
-    this.api.getRestaurantes().subscribe(data => this.restaurantes = data);
+    // CORRECCIÓN 1: Usar el nombre correcto del servicio
+    this.api.getRestaurantesPublicos().subscribe((data: any) => {
+      this.restaurantes = data;
+      this.restaurantesFiltrados = data;
+    });
   }
 
   realizarBusqueda() {
     if (!this.searchQuery.trim()) {
       this.mensajeIA = '';
-      this.cargarTodos();
+      this.restaurantesFiltrados = this.restaurantes;
       return;
     }
 
     this.estaBuscando = true;
     
-    // Simulamos un pequeño delay para que parezca que la IA está "pensando"
+    // CORRECCIÓN 2: Simular búsqueda localmente (porque no hay endpoint de IA)
     setTimeout(() => {
-      this.api.buscarConIA(this.searchQuery).subscribe(resultados => {
-        this.restaurantes = resultados;
-        this.estaBuscando = false;
+      const query = this.searchQuery.toLowerCase();
+      this.restaurantesFiltrados = this.restaurantes.filter(r => 
+        r.nombre.toLowerCase().includes(query) || 
+        r.direccion?.toLowerCase().includes(query)
+      );
+      
+      this.estaBuscando = false;
 
-        if (resultados.length > 0) {
-          this.mensajeIA = `¡Entendido! Aquí tienes opciones para "${this.searchQuery}" 🤖`;
-        } else {
-          this.mensajeIA = `Ups, no encontré nada específico para "${this.searchQuery}", pero mira todo lo que tenemos:`;
-          this.cargarTodos(); // Restaurar lista si no hay nada
-        }
-      });
-    }, 800); // 800ms de "pensamiento"
+      if (this.restaurantesFiltrados.length > 0) {
+        this.mensajeIA = `¡Entendido! Aquí tienes opciones para "${this.searchQuery}" 🤖`;
+      } else {
+        this.mensajeIA = `Ups, no encontré nada específico para "${this.searchQuery}".`;
+      }
+    }, 800); 
   }
-  // Método para abrir el modal
+
   abrirModal(restaurante: any) {
     this.restauranteSeleccionado = restaurante;
-    // Limpiamos el formulario
-    this.reservaData = { nombre: '', fecha: '', hora: '' };
+    this.reservaData = { numeroPersonas: 2, fecha: '', hora: '' };
     
-    // Abrimos el modal usando ID (DaisyUI usa el tag nativo <dialog>)
     const modal = document.getElementById('modal_reserva') as HTMLDialogElement;
-    if (modal) {
-      modal.showModal();
-    }
+    if (modal) modal.showModal();
   }
 
-  // Método para enviar la reserva
   confirmarReserva() {
-    if (!this.reservaData.nombre || !this.reservaData.fecha || !this.reservaData.hora) {
-      alert('Por favor completa todos los campos');
+    if (!this.reservaData.fecha || !this.reservaData.hora) {
+      alert('Por favor completa fecha y hora');
       return;
     }
 
-  const payload = {
+    // CORRECCIÓN 3: Ajustar el payload a lo que pide el Backend (.NET)
+    // Backend espera: { restauranteId, fechaHora, numeroPersonas }
+    // No enviamos nombreCliente porque el Backend lo saca del Token
+    const payload = {
       restauranteId: this.restauranteSeleccionado.id,
-      nombreCliente: this.reservaData.nombre,
-      fechaHora: `${this.reservaData.fecha}T${this.reservaData.hora}`
+      fechaHora: `${this.reservaData.fecha}T${this.reservaData.hora}:00`,
+      numeroPersonas: this.reservaData.numeroPersonas
     };
 
-    // Llamamos al servicio (simulado)
-    this.api.crearReserva(payload).subscribe(() => {
-      alert(`¡Solicitud enviada a ${this.restauranteSeleccionado.nombre}!`);
-      
-      // Cerramos el modal
-      const modal = document.getElementById('modal_reserva') as HTMLDialogElement;
-      if (modal) {
-        modal.close();
-      }
+    this.api.crearReserva(payload).subscribe({
+      next: () => {
+        alert(`¡Solicitud enviada a ${this.restauranteSeleccionado.nombre}!`);
+        const modal = document.getElementById('modal_reserva') as HTMLDialogElement;
+        if (modal) modal.close();
+      },
+      error: (err: any) => alert('Error: ' + (err.error?.mensaje || 'Error al reservar'))
     });
   }
-
 }

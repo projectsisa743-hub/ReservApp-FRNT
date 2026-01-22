@@ -26,7 +26,7 @@
 </div>
 
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-  @for (rest of restaurantes; track rest.id) {
+  @for (rest of restaurantesFiltrados; track rest.id) {
     <div class="card bg-base-100 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
       <figure>
         <img [src]="rest.imagen" alt="Restaurante" class="h-48 w-full object-cover" />

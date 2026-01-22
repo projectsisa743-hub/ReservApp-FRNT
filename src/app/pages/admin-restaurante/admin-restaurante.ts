@@ -1,60 +1,74 @@
-import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Api } from '../../services/api';
 
 @Component({
   selector: 'app-admin-restaurante',
+  standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './admin-restaurante.html',
-  styleUrl: './admin-restaurante.css',
 })
 export class AdminRestaurante implements OnInit {
-  reservas: any[] = [];
-  mesas: any[] = [];
+  tabActual: string = 'reservas'; // 'reservas' | 'mesas' | 'perfil'
   
-  // Variables para el Modal de Asignación
-  reservaSeleccionada: any = null;
-  mesaSeleccionadaId: number | null = null;
+  // Datos
+  perfil: any = {};
+  mesas: any[] = [];
+  reservas: any[] = [];
+
+  // Formulario Mesa Nueva
+  nuevaMesa = { numeroMesa: '', capacidad: 2 };
 
   constructor(private api: Api) {}
 
   ngOnInit() {
-    this.cargarDatos();
+    this.cargarTodo();
   }
 
-  cargarDatos() {
-    // Simulamos carga de datos del backend
-    this.api.getReservasAdmin().subscribe(data => this.reservas = data);
-    this.api.getMesasAdmin().subscribe(data => this.mesas = data);
+  cargarTodo() {
+    this.api.getMiPerfilRestaurante().subscribe(data => this.perfil = data);
+    this.api.getMisMesas().subscribe(data => this.mesas = data);
+    this.api.getReservasDelRestaurante().subscribe(data => this.reservas = data);
   }
 
-  // Abrir modal para una reserva específica
-  abrirModalAsignar(reserva: any) {
-    this.reservaSeleccionada = reserva;
-    this.mesaSeleccionadaId = null; // Resetear selección anterior
+  // --- Lógica de Perfil ---
+  guardarPerfil() {
+    this.api.actualizarPerfilRestaurante(this.perfil).subscribe({
+      next: () => alert('Perfil actualizado correctamente'),
+      error: () => alert('Error al actualizar')
+    });
+  }
+
+  // --- Lógica de Mesas ---
+  agregarMesa() {
+    if (!this.nuevaMesa.numeroMesa) return;
     
-    const modal = document.getElementById('modal_asignar_mesa') as HTMLDialogElement;
-    if(modal) modal.showModal();
+    this.api.crearMesa(this.nuevaMesa).subscribe({
+      next: () => {
+        this.cargarTodo(); // Recargar lista
+        this.nuevaMesa = { numeroMesa: '', capacidad: 2 }; // Limpiar
+      },
+      error: () => alert('Error al crear mesa')
+    });
   }
 
-  confirmarAsignacion() {
-    if (!this.mesaSeleccionadaId || !this.reservaSeleccionada) {
-      alert("Por favor selecciona una mesa");
-      return;
-    }
+  borrarMesa(id: number) {
+    if(!confirm('¿Eliminar mesa?')) return;
+    this.api.eliminarMesa(id).subscribe(() => this.cargarTodo());
+  }
 
-    this.api.asignarMesa(this.reservaSeleccionada.id, this.mesaSeleccionadaId)
-      .subscribe(() => {
-        alert("¡Mesa asignada y reserva aceptada!");
-        
-        // Actualización visual simulada (en backend real esto se recargaría)
-        this.reservaSeleccionada.estado = 'Aceptada';
-        const mesaEncontrada = this.mesas.find(m => m.id == this.mesaSeleccionadaId);
-        this.reservaSeleccionada.mesa = mesaEncontrada.numero;
+  // --- Lógica de Reservas (Algoritmo) ---
+  responderReserva(id: number, aprobar: boolean) {
+    // Enviamos mesaId: null para que el Backend use su algoritmo "Best Fit"
+    const payload = { reservaId: id, aprobada: aprobar, mesaId: null };
 
-        const modal = document.getElementById('modal_asignar_mesa') as HTMLDialogElement;
-        if(modal) modal.close();
-      });
+    this.api.gestionarReserva(payload).subscribe({
+      next: (res: any) => {
+        alert(res.mensaje); // Mostrará "Reserva confirmada en mesa X"
+        this.cargarTodo();
+      },
+      error: (err) => alert('Error: ' + err.error)
+    });
   }
 }

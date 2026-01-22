@@ -1,81 +1,41 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, of } from 'rxjs';
 
 @Injectable({
-  providedIn: 'root',
+  providedIn: 'root'
 })
 export class Api {
-
-  private baseUrl = 'http://localhost:5160/api';
+  // Asegúrate de que este puerto coincida con tu Backend (dotnet run)
+  readonly baseUrl = 'http://localhost:5160/api';
 
   constructor(private http: HttpClient) { }
 
-  getRestaurantes() {
-    return this.http.get<any[]>(`${this.baseUrl}/restaurant/publicos`);
+  // ==========================================
+  // 1. AUTENTICACIÓN
+  // ==========================================
+  login(loginData: any) {
+    return this.http.post(`${this.baseUrl}/auth/login`, loginData);
   }
 
-  // Búsqueda con IA (Simulada o Real si creaste el endpoint)
-  // Si aún no tienes endpoint de IA en .NET, mantenemos la lógica local temporalmente
-  // O idealmente, creas un endpoint en .NET que reciba el query.
-  buscarConIA(query: string): Observable<any[]> {
-     // Por ahora, para no romper, podrías llamar a getRestaurantes y filtrar aquí,
-     // o crear el endpoint '/restaurant/buscar?q=...'
-     return this.http.get<any[]>(`${this.baseUrl}/restaurant/publicos`); 
+  registroUsuario(data: any) {
+    return this.http.post(`${this.baseUrl}/auth/registro-usuario`, data);
   }
 
-  crearReserva(datos: any) {
-    return this.http.post(`${this.baseUrl}/user/reservar`, datos);
+  registroRestaurante(data: any) {
+    return this.http.post(`${this.baseUrl}/auth/registro-restaurante`, data);
   }
 
-  // Simulación: Obtener mis reservas
-  getMisReservas() {
-    return this.http.get<any[]>(`${this.baseUrl}/user/mis-reservas`);
-  }
-
-  // --- MÉTODOS PARA ADMIN RESTAURANTE (NUEVOS) ---
-
-  // 1. Obtener solicitudes de reserva que llegan al restaurante
-  getReservasAdmin() {
-    return this.http.get<any[]>(`${this.baseUrl}/restaurant/mis-reservas`);
-  }
-
-  // 2. Obtener lista de mesas del restaurante
-  getMesasAdmin() {
-    return this.http.get<any[]>(`${this.baseUrl}/restaurant/mesas`);
-  }
-
-  // 3. Acción de aceptar y asignar mesa
-  asignarMesa(idReserva: number, idMesa: number): Observable<any> {
-    return this.http.put(`${this.baseUrl}/restaurant/aceptar-reserva`, { reservaId: idReserva, mesaId: idMesa });
-  }
-
-  // AUTENTICACIÓN
-  login(credenciales: any): Observable<any> {
-    return this.http.post(`${this.baseUrl}/auth/login`, credenciales);
-  }
-
-  registroUsuario(datos: any): Observable<any> {
-    return this.http.post(`${this.baseUrl}/auth/registro-usuario`, datos);
-  }
-
-  registroRestaurante(datos: any): Observable<any> {
-    return this.http.post(`${this.baseUrl}/auth/registro-restaurante`, datos);
-  }
-  
-  // --- MÉTODOS PARA SUPER ADMIN ---
-
-  // Obtener restaurantes pendientes de aprobación
+  // ==========================================
+  // 2. SUPER ADMIN
+  // ==========================================
   getSolicitudesRegistro() {
-    // Nota: Necesitarás un interceptor para enviar el Token, 
-    // o agregarlo manualmente en los headers aquí si no tienes interceptor.
     return this.http.get<any[]>(`${this.baseUrl}/admin/solicitudes`);
   }
 
-  // Aprobar un restaurante
   aprobarRestaurante(id: number) {
     return this.http.put(`${this.baseUrl}/admin/aprobar/${id}`, {});
   }
+
   getRestaurantesActivos() {
     return this.http.get<any[]>(`${this.baseUrl}/admin/activos`);
   }
@@ -86,5 +46,57 @@ export class Api {
 
   eliminarRestaurante(id: number) {
     return this.http.delete(`${this.baseUrl}/admin/eliminar/${id}`);
+  }
+
+  // ==========================================
+  // 3. PANEL RESTAURANTE (DUEÑO)
+  // ==========================================
+  
+  // Perfil
+  getMiPerfilRestaurante() {
+    return this.http.get<any>(`${this.baseUrl}/restaurant/mi-perfil`);
+  }
+
+  actualizarPerfilRestaurante(data: any) {
+    return this.http.put(`${this.baseUrl}/restaurant/actualizar-perfil`, data);
+  }
+
+  // Mesas
+  getMisMesas() {
+    return this.http.get<any[]>(`${this.baseUrl}/restaurant/mesas`);
+  }
+
+  crearMesa(data: any) {
+    return this.http.post(`${this.baseUrl}/restaurant/mesas`, data);
+  }
+
+  eliminarMesa(id: number) {
+    return this.http.delete(`${this.baseUrl}/restaurant/mesas/${id}`);
+  }
+
+  // Reservas Recibidas
+  getReservasDelRestaurante() {
+    return this.http.get<any[]>(`${this.baseUrl}/restaurant/mis-reservas`);
+  }
+
+  gestionarReserva(data: { reservaId: number, aprobada: boolean, mesaId?: number | null }) {
+    return this.http.put(`${this.baseUrl}/restaurant/gestionar-reserva`, data);
+  }
+
+  // ==========================================
+  // 4. CLIENTE (USUARIO)
+  // ==========================================
+  
+  // Listado público para elegir dónde comer
+  getRestaurantesPublicos() {
+    return this.http.get<any[]>(`${this.baseUrl}/restaurant/publicos`);
+  }
+
+  crearReserva(data: { restauranteId: number, fechaHora: string, numeroPersonas: number }) {
+    return this.http.post(`${this.baseUrl}/user/reservar`, data);
+  }
+
+  getMisReservasCliente() {
+    return this.http.get<any[]>(`${this.baseUrl}/user/mis-reservas`);
   }
 }

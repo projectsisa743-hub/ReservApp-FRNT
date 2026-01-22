@@ -1,125 +1,101 @@
-<div class="p-6">
-  <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-    <div>
-      <h2 class="text-3xl font-bold text-primary">Admin Restaurante</h2>
-      <p class="text-gray-500">Gestiona tus solicitudes y ocupación</p>
-    </div>
-    
+<div class="container mx-auto p-4">
+  <div class="flex justify-between items-center mb-6">
+    <h2 class="text-3xl font-bold text-primary">Gestión de {{ perfil.nombre }}</h2>
     <div class="stats shadow bg-base-100">
       <div class="stat">
-        <div class="stat-figure text-secondary">
-          <i class="fa-solid fa-clock text-2xl"></i>
-        </div>
-        <div class="stat-title">Pendientes</div>
-        <div class="stat-value text-secondary">2</div>
-        <div class="stat-desc">Requieren atención</div>
-      </div>
-      
-      <div class="stat">
-        <div class="stat-figure text-primary">
-          <i class="fa-solid fa-chair text-2xl"></i>
-        </div>
-        <div class="stat-title">Mesas Libres</div>
-        <div class="stat-value text-primary">4</div>
-        <div class="stat-desc">De 10 totales</div>
+        <div class="stat-title">Reservas Totales</div>
+        <div class="stat-value text-secondary">{{ reservas.length }}</div>
       </div>
     </div>
   </div>
 
-  <div class="card bg-base-100 shadow-xl overflow-hidden">
-    <div class="overflow-x-auto">
-      <table class="table table-zebra w-full">
-        <thead class="bg-base-200 text-base-content">
+  <div role="tablist" class="tabs tabs-lifted mb-6">
+    <a role="tab" class="tab" [class.tab-active]="tabActual === 'reservas'" (click)="tabActual = 'reservas'">📅 Reservas</a>
+    <a role="tab" class="tab" [class.tab-active]="tabActual === 'mesas'" (click)="tabActual = 'mesas'">🪑 Mesas</a>
+    <a role="tab" class="tab" [class.tab-active]="tabActual === 'perfil'" (click)="tabActual = 'perfil'">⚙️ Perfil</a>
+  </div>
+
+  @if (tabActual === 'reservas') {
+    <div class="bg-base-100 p-6 rounded-box shadow">
+      <h3 class="font-bold text-lg mb-4">Solicitudes Recientes</h3>
+      <table class="table">
+        <thead>
           <tr>
+            <th>Fecha/Hora</th>
             <th>Cliente</th>
-            <th>Fecha y Hora</th>
             <th>Personas</th>
             <th>Estado</th>
-            <th>Mesa</th>
-            <th class="text-right">Acciones</th>
+            <th>Acciones</th>
           </tr>
         </thead>
         <tbody>
-          @for (reserva of reservas; track reserva.id) {
-            <tr class="hover">
-              <td>
-                <div class="font-bold">{{ reserva.cliente }}</div>
-                <div class="text-sm opacity-50">Cliente Frecuente</div>
+          @for (res of reservas; track res.id) {
+            <tr>
+              <td>{{ res.fechaHora | date:'short' }}</td>
+              <td>{{ res.cliente?.nombre }}<br/><span class="text-xs">{{ res.cliente?.email }}</span></td>
+              <td class="font-bold">{{ res.numeroPersonas || '?' }} pax</td> <td>
+                <span class="badge" 
+                  [class.badge-warning]="res.estado === 'Pendiente'"
+                  [class.badge-success]="res.estado === 'Confirmada'"
+                  [class.badge-error]="res.estado === 'Rechazada'">
+                  {{ res.estado }}
+                </span>
+                @if(res.mesaId) { <div class="text-xs mt-1">Mesa: {{res.mesaId}}</div> }
               </td>
               <td>
-                <div class="flex items-center gap-2">
-                  <i class="fa-regular fa-calendar"></i>
-                  {{ reserva.fecha }}
-                </div>
-              </td>
-              <td>
-                <div class="badge badge-ghost">{{ reserva.personas }} pax</div>
-              </td>
-              <td>
-                @if (reserva.estado === 'Pendiente') {
-                  <div class="badge badge-warning gap-1">
-                    <span class="loading loading-spinner loading-xs"></span> Pendiente
-                  </div>
-                } @else {
-                  <div class="badge badge-success text-white gap-1">
-                    <i class="fa-solid fa-check"></i> Aceptada
-                  </div>
-                }
-              </td>
-              <td class="font-mono text-sm">
-                {{ reserva.mesa || '---' }}
-              </td>
-              <td class="text-right">
-                @if (reserva.estado === 'Pendiente') {
-                  <button class="btn btn-sm btn-primary" (click)="abrirModalAsignar(reserva)">
-                    Asignar Mesa
-                  </button>
-                  <button class="btn btn-sm btn-ghost text-error ml-2" title="Rechazar">
-                    <i class="fa-solid fa-xmark"></i>
-                  </button>
+                @if(res.estado === 'Pendiente') {
+                  <button class="btn btn-xs btn-success mr-2 text-white" (click)="responderReserva(res.id, true)">Aceptar (Auto)</button>
+                  <button class="btn btn-xs btn-error text-white" (click)="responderReserva(res.id, false)">X</button>
                 }
               </td>
             </tr>
           }
+          @if(reservas.length === 0) { <tr><td colspan="5">No hay reservas aún.</td></tr> }
         </tbody>
       </table>
     </div>
-  </div>
-</div>
+  }
 
-<dialog id="modal_asignar_mesa" class="modal">
-  <div class="modal-box">
-    <h3 class="font-bold text-lg mb-4">
-      Asignar mesa para <span class="text-primary">{{ reservaSeleccionada?.cliente }}</span>
-    </h3>
-    
-    <div class="alert alert-info shadow-sm mb-4 text-sm">
-      <i class="fa-solid fa-circle-info"></i>
-      <span>Solicitud para <strong>{{ reservaSeleccionada?.personas }} personas</strong>.</span>
-    </div>
+  @if (tabActual === 'mesas') {
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="card bg-base-100 shadow p-4 h-fit">
+        <h3 class="font-bold mb-4">Nueva Mesa</h3>
+        <div class="form-control mb-2">
+          <label class="label">Nombre/Número</label>
+          <input type="text" [(ngModel)]="nuevaMesa.numeroMesa" class="input input-bordered" placeholder="Ej. Mesa Ventana 1">
+        </div>
+        <div class="form-control mb-4">
+          <label class="label">Capacidad (Personas)</label>
+          <input type="number" [(ngModel)]="nuevaMesa.capacidad" class="input input-bordered">
+        </div>
+        <button class="btn btn-primary" (click)="agregarMesa()">Agregar al Inventario</button>
+      </div>
 
-    <div class="form-control w-full">
-      <label class="label">
-        <span class="label-text">Selecciona una mesa disponible</span>
-      </label>
-      <select class="select select-bordered w-full" [(ngModel)]="mesaSeleccionadaId">
-        <option disabled selected [value]="null">-- Elige una mesa --</option>
+      <div class="col-span-2 grid grid-cols-2 md:grid-cols-3 gap-4">
         @for (mesa of mesas; track mesa.id) {
-          <option [value]="mesa.id">
-            {{ mesa.numero }} ({{ mesa.ubicacion }} - Cap: {{ mesa.capacidad }})
-          </option>
+          <div class="card bg-base-200 shadow-sm p-4 text-center relative group">
+            <div class="text-4xl mb-2">🪑</div>
+            <div class="font-bold">{{ mesa.numeroMesa }}</div>
+            <div class="text-sm">Capacidad: {{ mesa.capacidad }}</div>
+            <button class="btn btn-xs btn-circle btn-error absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition" 
+                    (click)="borrarMesa(mesa.id)">✕</button>
+          </div>
         }
-      </select>
+      </div>
     </div>
+  }
 
-    <div class="modal-action mt-6">
-      <form method="dialog">
-        <button class="btn btn-ghost">Cancelar</button>
-      </form>
-      <button class="btn btn-primary" (click)="confirmarAsignacion()">Confirmar Asignación</button>
+  @if (tabActual === 'perfil') {
+    <div class="card bg-base-100 shadow p-6 max-w-2xl mx-auto">
+      <div class="form-control mb-4">
+        <label class="label">Nombre del Restaurante</label>
+        <input type="text" [(ngModel)]="perfil.nombre" class="input input-bordered">
+      </div>
+      <div class="form-control mb-4">
+        <label class="label">Dirección Completa</label>
+        <input type="text" [(ngModel)]="perfil.direccion" class="input input-bordered" placeholder="Calle, Número, Ciudad...">
+      </div>
+      <button class="btn btn-primary w-full" (click)="guardarPerfil()">Guardar Cambios</button>
     </div>
-  </div>
-  <form method="dialog" class="modal-backdrop">
-    <button>close</button>
-  </form>
-</dialog>
+  }
+</div>
